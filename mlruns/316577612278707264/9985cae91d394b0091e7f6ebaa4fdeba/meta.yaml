@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/macmini/SMSML_Naimatul-Ulumiyah/mlruns/316577612278707264/9985cae91d394b0091e7f6ebaa4fdeba/artifacts
+end_time: 1772538000972
+entry_point_name: ''
+experiment_id: '316577612278707264'
+lifecycle_stage: active
+run_id: 9985cae91d394b0091e7f6ebaa4fdeba
+run_name: RandomForest_Autolog
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1772537976529
+status: 3
+tags: []
+user_id: macmini
