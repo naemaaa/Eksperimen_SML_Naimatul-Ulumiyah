@@ -9,11 +9,11 @@ import numpy as np
 import requests
 from datetime import datetime
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# Config ───────
 MODEL_URL       = 'http://localhost:5001/invocations'
 OPTIMAL_THRESHOLD = 0.35    # threshold optimal dari training (bukan default 0.5!)
 
-# ── Warna terminal ────────────────────────────────────────────────────────────
+# Warna terminal ────────────────────────────────────────────────────────────
 RED    = '\033[91m'
 GREEN  = '\033[92m'
 YELLOW = '\033[93m'
@@ -22,7 +22,7 @@ BOLD   = '\033[1m'
 RESET  = '\033[0m'
 
 
-# ── Generate patient data ─────────────────────────────────────────────────────
+# Generate patient data ─────────────────────────────────────────────────────
 def generate_patient(profile: str = 'random') -> dict:
     """
     Generate data pasien ICU sintetis.
@@ -91,7 +91,7 @@ def patient_to_features(patient: dict) -> list:
     return list(patient.values())
 
 
-# ── Call model ────────────────────────────────────────────────────────────────
+# Call model ───
 def predict(features: list, threshold: float = OPTIMAL_THRESHOLD) -> dict:
     """
     Kirim features ke model serving dan parse hasilnya.
@@ -140,7 +140,7 @@ def _risk_level(confidence: float) -> str:
     return f"{GREEN}MINIMAL{RESET}"
 
 
-# ── Clinical interpretation ────────────────────────────────────────────────────
+# Clinical interpretation ────────────────────────────────────────────────────
 def clinical_interpretation(patient: dict, result: dict) -> str:
     """Generate interpretasi klinis sederhana."""
     flags = []
@@ -167,7 +167,7 @@ def clinical_interpretation(patient: dict, result: dict) -> str:
     return "\n".join(lines)
 
 
-# ── Display single prediction ─────────────────────────────────────────────────
+# Display single prediction ─────────────────────────────────────────────────
 def display_prediction(i: int, patient: dict, result: dict, verbose: bool = True):
     label_color = RED if result['prediction'] == 1 else GREEN
 
@@ -189,7 +189,7 @@ def display_prediction(i: int, patient: dict, result: dict, verbose: bool = True
               f"SOFA={patient.get('sofa_proxy',0)}")
 
 
-# ── Summary stats ─────────────────────────────────────────────────────────────
+# Summary stats 
 def print_summary(results: list, latencies: list, elapsed: float):
     total    = len(results)
     positive = sum(1 for r in results if r['prediction'] == 1)
@@ -212,7 +212,7 @@ def print_summary(results: list, latencies: list, elapsed: float):
     print(f"{'='*55}")
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# Main ──────────
 def main():
     parser = argparse.ArgumentParser(description='Sepsis ICU Model Inference')
     parser.add_argument('--n',        type=int,  default=20,    help='Jumlah prediksi')

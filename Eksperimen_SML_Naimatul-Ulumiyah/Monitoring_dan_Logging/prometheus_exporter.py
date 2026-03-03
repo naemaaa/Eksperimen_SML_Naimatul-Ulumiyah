@@ -51,7 +51,7 @@ from prometheus_client import (
     CollectorRegistry
 )
 
-# ── Logging ───────────────────────────────────────────────────────────────────
+# Logging ──────
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)s | %(message)s',
@@ -59,13 +59,13 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ── Konfigurasi ───────────────────────────────────────────────────────────────
+# Konfigurasi ──
 MODEL_SERVE_URL = os.getenv('MODEL_SERVE_URL', 'http://localhost:5001/invocations')
 EXPORTER_PORT   = int(os.getenv('EXPORTER_PORT', 8000))
 SCRAPE_INTERVAL = float(os.getenv('SCRAPE_INTERVAL', 2.0))   # detik
 N_FEATURES      = int(os.getenv('N_FEATURES', 13))            # sesuaikan dengan model
 
-# ── Definisi Metrik ───────────────────────────────────────────────────────────
+# Definisi Metrik ───────────────────────────────────────────────────────────
 
 # 1. Total prediksi kumulatif
 PREDICTION_COUNTER = Counter(
@@ -158,7 +158,7 @@ THROUGHPUT = Counter(
     'Total data pasien yang sudah diproses sejak startup'
 )
 
-# ── State tracking untuk rolling metrics ──────────────────────────────────────
+# State tracking untuk rolling metrics ──────────────────────────────────────
 _window_preds   = []    # [(y_true_sim, y_pred, confidence), ...]
 _window_size    = 100   # rolling window
 _request_count  = 0
@@ -166,7 +166,7 @@ _last_time      = time.time()
 _lock           = threading.Lock()
 
 
-# ── Helper: Generate dummy ICU patient data ────────────────────────────────────
+# Helper: Generate dummy ICU patient data ────────────────────────────────────
 def generate_icu_patient():
     """
     Generate data pasien ICU sintetis untuk simulasi prediksi.
@@ -215,7 +215,7 @@ def generate_icu_patient():
     return list(features.values()), true_label
 
 
-# ── Helper: Call model serving endpoint ───────────────────────────────────────
+# Helper: Call model serving endpoint ───────────────────────────────────────
 def call_model(features: list) -> dict:
     """
     Kirim request ke MLflow model serving.
@@ -252,7 +252,7 @@ def call_model(features: list) -> dict:
     }
 
 
-# ── Helper: Update resource metrics ───────────────────────────────────────────
+# Helper: Update resource metrics ───────────────────────────────────────────
 def update_resource_metrics():
     """Update CPU dan memory dari proses sistem."""
     try:
@@ -265,7 +265,7 @@ def update_resource_metrics():
         CPU_USAGE.set(random.uniform(15, 65))
 
 
-# ── Helper: Update drift metrics ──────────────────────────────────────────────
+# Helper: Update drift metrics ──────────────────────────────────────────────
 def update_drift_metrics():
     """
     Simulasi deteksi data drift per group fitur.
@@ -283,7 +283,7 @@ def update_drift_metrics():
     FEATURE_DRIFT.labels(feature_group='demographics').set(demo_drift)
 
 
-# ── Helper: Compute rolling accuracy & FNR ────────────────────────────────────
+# Helper: Compute rolling accuracy & FNR ────────────────────────────────────
 def update_rolling_metrics():
     """Hitung akurasi dan FNR dari window prediksi terakhir."""
     global _window_preds
@@ -306,13 +306,13 @@ def update_rolling_metrics():
     FALSE_NEGATIVE_RATE.set(fnr)
 
 
-# ── Helper: Update request rate ───────────────────────────────────────────────
+# Helper: Update request rate ───────────────────────────────────────────────
 def update_request_rate(n_new_requests: int, elapsed: float):
     rate = n_new_requests / elapsed if elapsed > 0 else 0
     REQUEST_RATE.set(rate)
 
 
-# ── Main loop ─────────────────────────────────────────────────────────────────
+# Main loop ────
 def run_prediction_loop():
     """
     Loop utama: generate data pasien → kirim ke model → update semua metrik.
@@ -429,7 +429,7 @@ def _simulate_metrics(features, true_label):
     CPU_USAGE.set(random.uniform(15, 65))
 
 
-# ── Entry Point ────────────────────────────────────────────────────────────────
+# Entry Point ───
 if __name__ == '__main__':
     log.info("="*60)
     log.info("  SEPSIS ICU — PROMETHEUS EXPORTER")

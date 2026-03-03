@@ -41,11 +41,14 @@ jobs:
           pip install --upgrade pip
           pip install mlflow==2.19.0 scikit-learn xgboost imbalanced-learn optuna shap pandas numpy matplotlib seaborn dagshub psutil
 
-      - name: Run Preprocessing
-        run: |
-          cd MLProject
-          python preprocessing_ci.py --data_dir ./training_data --output_dir ./sepsis_preprocessing
-          ls -lh sepsis_preprocessing/
+      - name: Run Preprocessing 
+        run: python MLProject/preprocessing_ci.py --output_dir MLProject/sepsis_preprocessing
+    
+      - name: Verify Preprocessed Data  # Optional, buat debug
+        run: ls -la MLProject/sepsis_preprocessing || echo "Folder data gak tercipta!"
+      
+      - name: Verify Preprocessed Data 
+        run: ls -la MLProject/sepsis_preprocessing || echo "Folder data gak tercipta!"
 
       - name: Set MLflow Tracking URI
         env:
@@ -128,3 +131,8 @@ jobs:
           cd MLProject
           mlflow run . --experiment-name "Sepsis_ICU_CI" --env-manager=local -P model_type=${{ github.event.inputs.model_type || 'xgboost' }} -P n_trials=${{ github.event.inputs.n_trials || '20' }} -P data_dir=$PWD/sepsis_preprocessing -P no_dagshub=true
       
+
+
+
+          name: CI Sepsis ICU MLflow Project
+

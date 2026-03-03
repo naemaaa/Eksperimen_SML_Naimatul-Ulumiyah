@@ -17,17 +17,17 @@ global:
     monitor  : 'sepsis-icu-monitor'
     project  : 'msml-submission'
 
-# ── Alert rules (load dari file terpisah) ────────────────────────────────────
+# Alert rules (load dari file terpisah) ────────────────────────────────────
 rule_files:
   - "alert_rules.yml"
 
-# ── Alertmanager (opsional, untuk notifikasi) ─────────────────────────────────
+# Alertmanager (opsional, untuk notifikasi) ─────────────────────────────────
 # alerting:
 #   alertmanagers:
 #     - static_configs:
 #         - targets: ['localhost:9093']
 
-# ── Scrape configs ────────────────────────────────────────────────────────────
+# Scrape configs ────────────────────────────────────────────────────────────
 scrape_configs:
 
   # 1. Scrape Prometheus itself

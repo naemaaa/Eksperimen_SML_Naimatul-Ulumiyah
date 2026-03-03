@@ -29,7 +29,7 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 import shap
 
-# ── Argparse ──────────────────────────────────────────────────────────────────
+# Argparse ─────
 def parse_args():
     p = argparse.ArgumentParser(description='Sepsis ICU Model Training')
     p.add_argument('--n_estimators',     type=int,   default=100)
@@ -53,7 +53,7 @@ def parse_args():
     return p.parse_args()
 
 
-# ── DagsHub Setup ──────────────────────────────────────────────────────────────
+# DagsHub Setup ─
 def setup_tracking(args):
     use_dagshub = (
         not args.no_dagshub
@@ -71,11 +71,11 @@ def setup_tracking(args):
             print(f"✅ DagsHub: {args.dagshub_username}/{args.dagshub_repo}")
             return True
         except Exception as e:
-            print(f"⚠️  DagsHub gagal ({e}), lanjut lokal...")
+            print(f" DagsHub gagal ({e}), lanjut lokal...")
     return False
 
 
-# ── Load Data ──────────────────────────────────────────────────────────────────
+# Load Data ─────
 def load_data(data_dir):
     train_path = os.path.join(data_dir, 'sepsis_preprocessing_train.csv')
     test_path  = os.path.join(data_dir, 'sepsis_preprocessing_test.csv')
@@ -99,7 +99,7 @@ def load_data(data_dir):
     return X_train, X_test, y_train, y_test
 
 
-# ── Artefak Helpers ─────────────────────────────────────────────────────────────
+# Artefak Helpers 
 def save_confusion_matrix(y_true, y_pred, name, output_dir):
     cm   = confusion_matrix(y_true, y_pred)
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -182,7 +182,7 @@ def save_shap(model, X_sample, name, output_dir):
 
         return path_bar, path_bee
     except Exception as e:
-        print(f"  ⚠️  SHAP error: {e}")
+        print(f"   SHAP error: {e}")
         return None, None
 
 
@@ -205,7 +205,7 @@ def save_feature_importance(model, feature_names, name, output_dir, top_n=25):
     return path
 
 
-# ── Train XGBoost ──────────────────────────────────────────────────────────────
+# Train XGBoost ─
 def train_xgboost(X_train, X_test, y_train, y_test, args, output_dir):
     print("\n⚡ Training XGBoost...")
     spw = (y_train == 0).sum() / (y_train == 1).sum()
@@ -253,7 +253,7 @@ def train_xgboost(X_train, X_test, y_train, y_test, args, output_dir):
     return model, y_prob, y_pred_opt, best_t, best_f1, best_params, study, thresh_path
 
 
-# ── Train Random Forest ─────────────────────────────────────────────────────────
+# Train Random Forest ─────────────────────────────────────────────────────────
 def train_random_forest(X_train, X_test, y_train, y_test, args, output_dir):
     print("\n🌲 Training Random Forest...")
 
@@ -290,14 +290,14 @@ def train_random_forest(X_train, X_test, y_train, y_test, args, output_dir):
     return model, y_prob, y_pred_opt, best_t, best_f1, best_params, study, thresh_path
 
 
-# ── Log ke MLflow ───────────────────────────────────────────────────────────────
+# Log ke MLflow ──
 def log_to_mlflow(model, model_name, y_test, y_prob, y_pred_opt,
                   best_t, best_f1, best_params, study,
                   X_train, X_test, output_dir, args):
 
     with mlflow.start_run(run_name=f'{model_name}_Optuna') as run:
 
-        # ── Parameters ──
+        # Parameters ──
         log_params = {k: v for k, v in best_params.items()
                       if k not in ['use_label_encoder', 'eval_metric',
                                    'n_jobs', 'random_state']}
@@ -309,7 +309,7 @@ def log_to_mlflow(model, model_name, y_test, y_prob, y_pred_opt,
         mlflow.log_param('train_shape',      str(X_train.shape))
         mlflow.log_param('test_shape',       str(X_test.shape))
 
-        # ── Metrics ──
+        # Metrics ──
         mlflow.log_metric('accuracy',              accuracy_score(y_test, y_pred_opt))
         mlflow.log_metric('precision',             precision_score(y_test, y_pred_opt, zero_division=0))
         mlflow.log_metric('recall',                recall_score(y_test, y_pred_opt, zero_division=0))
@@ -321,7 +321,7 @@ def log_to_mlflow(model, model_name, y_test, y_prob, y_pred_opt,
         mlflow.log_metric('false_negative_rate',   _fnr(y_test, y_pred_opt))
         mlflow.log_metric('false_positive_rate',   _fpr_metric(y_test, y_pred_opt))
 
-        # ── Artefak ──
+        # Artefak ──
         safe_name = model_name.replace(' ', '_')
         artifacts = []
 
@@ -356,7 +356,7 @@ def log_to_mlflow(model, model_name, y_test, y_prob, y_pred_opt,
             if path and os.path.exists(path):
                 mlflow.log_artifact(path)
 
-        # ── Log Model ──
+        # Log Model ──
         if 'XGBoost' in model_name:
             mlflow.xgboost.log_model(model, f'{safe_name}_model',
                                       registered_model_name=f'Sepsis_{safe_name}')
@@ -369,7 +369,7 @@ def log_to_mlflow(model, model_name, y_test, y_prob, y_pred_opt,
         return run_id
 
 
-# ── Metric Helpers ──────────────────────────────────────────────────────────────
+# Metric Helpers ─
 def _specificity(y_true, y_pred):
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
     return tn / (tn + fp) if (tn + fp) > 0 else 0
@@ -383,7 +383,7 @@ def _fpr_metric(y_true, y_pred):
     return fp / (fp + tn) if (fp + tn) > 0 else 0
 
 
-# ── MAIN ────────────────────────────────────────────────────────────────────────
+# MAIN ───────────
 def main():
     args = parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
@@ -401,7 +401,7 @@ def main():
     mlflow.set_experiment('Sepsis_ICU_CI')
 
     # Load data
-    print("\n📂 Loading data...")
+    print("\n  Loading data...")
     X_train, X_test, y_train, y_test = load_data(args.data_dir)
 
     results = {}
@@ -438,7 +438,7 @@ def main():
         json.dump(results, f, indent=2)
 
     print("\n" + "="*65)
-    print("  ✅ TRAINING SELESAI")
+    print(" TRAINING SELESAI")
     print("="*65)
     for model_name, res in results.items():
         print(f"  {model_name:<20} ROC AUC: {res['roc_auc']:.4f}  "
