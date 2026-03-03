@@ -1,3 +1,22 @@
+"""
+modelling_tuning.py
+===================
+Advanced model training dengan:
+  - Manual MLflow logging (bukan autolog)
+  - Hyperparameter tuning (Optuna — lebih powerful dari GridSearchCV)
+  - Multiple model comparison (XGBoost vs Random Forest)
+  - SHAP analysis untuk model interpretability
+  - Threshold optimization (krusial untuk kasus medis!)
+  - DagsHub remote tracking (online MLflow)
+
+Install dependencies:
+    pip install xgboost optuna shap dagshub mlflow scikit-learn imbalanced-learn
+
+Jalankan:
+    python modelling_tuning.py
+    python modelling_tuning.py --no-dagshub   # jika belum setup DagsHub
+"""
+
 import os
 import sys
 import json
@@ -24,28 +43,13 @@ from sklearn.metrics import (
     roc_curve, precision_recall_curve, classification_report
 )
 
+import xgboost as xgb
+import optuna
+optuna.logging.set_verbosity(optuna.logging.WARNING)
 
-# optional dependencies
-try:
-    import xgboost as xgb
-except ImportError:
-    xgb = None
-    print("xgboost not installed; tuning will skip XGBoost models")
+import shap
 
-try:
-    import optuna
-    optuna.logging.set_verbosity(optuna.logging.WARNING)
-except ImportError:
-    optuna = None
-    print("optuna not installed; tuning functionality will be limited")
-
-try:
-    import shap
-except ImportError:
-    shap = None
-    print("shap not installed; interpretability plots disabled")
-
-#LI Args
+# ── CLI Args ──────────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser()
 parser.add_argument('--no-dagshub', action='store_true',
                     help='Skip DagsHub setup, simpan MLflow lokal')
@@ -53,12 +57,13 @@ parser.add_argument('--n-trials', type=int, default=30,
                     help='Jumlah trial Optuna (default: 30)')
 args = parser.parse_args()
 
-#DagsHub Setup
+# ── DagsHub Setup ─────────────────────────────────────────────────────────────
 USE_DAGSHUB = not args.no_dagshub
 
 if USE_DAGSHUB:
     try:
         import dagshub
+        # ⚠️  GANTI dengan username & repo DagsHub kamu!
         DAGSHUB_USERNAME = "USERNAME_DAGSHUB"
         DAGSHUB_REPO     = "Sepsis-ICU-MLflow"
 
@@ -67,23 +72,22 @@ if USE_DAGSHUB:
             repo_name=DAGSHUB_REPO,
             mlflow=True
         )
-        print(f"DagsHub connected: {DAGSHUB_USERNAME}/{DAGSHUB_REPO}")
+        print(f"✅ DagsHub connected: {DAGSHUB_USERNAME}/{DAGSHUB_REPO}")
     except Exception as e:
-        print(f"DagsHub setup gagal: {e}")
-        print("Lanjut dengan MLflow lokal...")
+        print(f"⚠️  DagsHub setup gagal: {e}")
+        print("   Lanjut dengan MLflow lokal...")
         USE_DAGSHUB = False
 
 mlflow.set_experiment('Sepsis_ICU_Tuning')
 
 # ── Load Data ─────────────────────────────────────────────────────────────────
-print(" SEPSIS ICU (ADVANCED MODEL TRAINING)")
-print("\nLoading data...")
+print("\n" + "="*65)
+print("  SEPSIS ICU — ADVANCED MODEL TRAINING")
+print("="*65)
+print("\n📂 Loading data...")
 
-# data inside sepsis_preprocessing subfolder (use script path to avoid cwd issues)
-script_dir = os.path.dirname(os.path.abspath(__file__))
-data_dir   = os.path.join(script_dir, 'sepsis_preprocessing')
-train_df = pd.read_csv(os.path.join(data_dir, 'sepsis_preprocessing_train.csv'))
-test_df  = pd.read_csv(os.path.join(data_dir, 'sepsis_preprocessing_test.csv'))
+train_df = pd.read_csv('./preprocessing/sepsis_preprocessing_train.csv')
+test_df  = pd.read_csv('./preprocessing/sepsis_preprocessing_test.csv')
 
 X_train = train_df.drop('SepsisLabel', axis=1)
 y_train = train_df['SepsisLabel']
@@ -95,7 +99,7 @@ print(f"  Test  : {X_test.shape}   |  Sepsis: {y_test.sum():,}  ({y_test.mean()*
 print(f"  Fitur : {X_train.shape[1]}")
 
 
-#Helper: Artifact Plots 
+# ── Helper: Artifact Plots ─────────────────────────────────────────────────────
 
 def plot_confusion_matrix(y_true, y_pred, model_name, threshold=0.5):
     """Confusion matrix dengan anotasi klinis."""
@@ -105,10 +109,10 @@ def plot_confusion_matrix(y_true, y_pred, model_name, threshold=0.5):
     disp = ConfusionMatrixDisplay(cm, display_labels=['Non-Sepsis', 'Sepsis'])
     disp.plot(ax=ax, cmap='Blues', colorbar=False)
 
-    # Highlight False Negatives 
+    # Highlight False Negatives — paling berbahaya di medis
     ax.add_patch(plt.Rectangle((0.5, -0.5), 1, 1,
                                 fill=True, color='#FFB3B3', alpha=0.3, zorder=0))
-    ax.text(1.0, 0.0, 'Galse Negative\n(paling berbahaya)',
+    ax.text(1.0, 0.0, '⚠️  False Negative\n(paling berbahaya)',
             ha='center', va='center', fontsize=8, color='darkred')
 
     tn, fp, fn, tp = cm.ravel()
@@ -128,6 +132,7 @@ def plot_confusion_matrix(y_true, y_pred, model_name, threshold=0.5):
 
 
 def plot_roc_pr_curves(y_true, y_prob, model_name):
+    """ROC + Precision-Recall curves dalam 1 figure."""
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
     # ROC Curve
@@ -151,7 +156,7 @@ def plot_roc_pr_curves(y_true, y_prob, model_name):
                 title=f'Precision-Recall Curve — {model_name}')
     axes[1].legend()
 
-    plt.suptitle('PR Curve lebih informatif dari ROC untuk imbalanced dataset',
+    plt.suptitle('💡 PR Curve lebih informatif dari ROC untuk imbalanced dataset',
                  fontsize=10, style='italic', color='gray')
     plt.tight_layout()
     path = f'roc_pr_{model_name.lower().replace(" ", "_")}.png'
@@ -161,6 +166,10 @@ def plot_roc_pr_curves(y_true, y_prob, model_name):
 
 
 def plot_threshold_optimization(y_true, y_prob, model_name):
+    """
+    Cari threshold optimal untuk F1 dan Recall.
+    Krusial di medis — default threshold 0.5 jarang optimal!
+    """
     thresholds = np.arange(0.1, 0.9, 0.01)
     f1s, recalls, precisions = [], [], []
 
@@ -197,6 +206,7 @@ def plot_threshold_optimization(y_true, y_prob, model_name):
 
 
 def plot_feature_importance(model, feature_names, model_name, top_n=25):
+    """Feature importance dari model."""
     if hasattr(model, 'feature_importances_'):
         importances = model.feature_importances_
     else:
@@ -213,7 +223,7 @@ def plot_feature_importance(model, feature_names, model_name, top_n=25):
     ax.barh(fi_df['feature'][::-1], fi_df['importance'][::-1],
             color=colors[::-1], edgecolor='white')
     ax.set(xlabel='Importance', title=f'Top {top_n} Feature Importance — {model_name}')
-    ax.text(0.98, 0.02, 'Biomarker klinis sepsis',
+    ax.text(0.98, 0.02, '🔴 = Biomarker klinis sepsis',
             transform=ax.transAxes, ha='right', va='bottom',
             fontsize=9, color='#E74C3C')
     plt.tight_layout()
@@ -224,7 +234,11 @@ def plot_feature_importance(model, feature_names, model_name, top_n=25):
 
 
 def plot_shap_analysis(model, X_sample, model_name):
-    print(f"\n Computing SHAP values untuk {model_name}...")
+    """
+    SHAP analysis — menjelaskan KENAPA model memprediksi sepsis.
+    Ini yang membuat portfolio kamu stand out secara klinis.
+    """
+    print(f"\n  🔍 Computing SHAP values untuk {model_name}...")
 
     try:
         if 'XGBoost' in model_name:
@@ -263,11 +277,11 @@ def plot_shap_analysis(model, X_sample, model_name):
         plt.savefig(path_bee, bbox_inches='tight', dpi=120)
         plt.close()
 
-        print(f"SHAP analysis selesai")
+        print(f"  ✅ SHAP analysis selesai")
         return path_bar, path_bee
 
     except Exception as e:
-        print(f" SHAP error: {e}")
+        print(f"  ⚠️  SHAP error: {e}")
         return None, None
 
 
