@@ -1,22 +1,3 @@
-"""
-modelling_tuning.py
-===================
-Advanced model training dengan:
-  - Manual MLflow logging (bukan autolog)
-  - Hyperparameter tuning (Optuna — lebih powerful dari GridSearchCV)
-  - Multiple model comparison (XGBoost vs Random Forest)
-  - SHAP analysis untuk model interpretability
-  - Threshold optimization (krusial untuk kasus medis!)
-  - DagsHub remote tracking (online MLflow)
-
-Install dependencies:
-    pip install xgboost optuna shap dagshub mlflow scikit-learn imbalanced-learn
-
-Jalankan:
-    python modelling_tuning.py
-    python modelling_tuning.py --no-dagshub   # jika belum setup DagsHub
-"""
-
 import os
 import sys
 import json
@@ -63,8 +44,7 @@ USE_DAGSHUB = not args.no_dagshub
 if USE_DAGSHUB:
     try:
         import dagshub
-        # ⚠️  GANTI dengan username & repo DagsHub kamu!
-        DAGSHUB_USERNAME = "USERNAME_DAGSHUB"
+        DAGSHUB_USERNAME = "naemaaa"
         DAGSHUB_REPO     = "Sepsis-ICU-MLflow"
 
         dagshub.init(
@@ -86,8 +66,10 @@ print("  SEPSIS ICU — ADVANCED MODEL TRAINING")
 print("="*65)
 print("\n📂 Loading data...")
 
-train_df = pd.read_csv('./preprocessing/sepsis_preprocessing_train.csv')
-test_df  = pd.read_csv('./preprocessing/sepsis_preprocessing_test.csv')
+script_dir = os.path.dirname(os.path.abspath(__file__))
+data_dir   = os.path.join(script_dir, 'sepsis_preprocessing')
+train_df = pd.read_csv(os.path.join(data_dir, 'sepsis_preprocessing_train.csv'))
+test_df  = pd.read_csv(os.path.join(data_dir, 'sepsis_preprocessing_test.csv'))
 
 X_train = train_df.drop('SepsisLabel', axis=1)
 y_train = train_df['SepsisLabel']
@@ -595,9 +577,9 @@ print("  └── optuna_*_summary.json")
 print()
 
 if USE_DAGSHUB:
-    print(f"  🌐 MLflow online: https://dagshub.com/{DAGSHUB_USERNAME}/{DAGSHUB_REPO}.mlflow")
+    print(f"MLflow online: https://dagshub.com/{DAGSHUB_USERNAME}/{DAGSHUB_REPO}.mlflow")
 else:
-    print("  💾 MLflow lokal: jalankan 'mlflow ui' → http://localhost:5000")
+    print("MLflow lokal: jalankan 'mlflow ui' → http://localhost:5000")
 
 print()
 print("  Insight klinis dari model:")
