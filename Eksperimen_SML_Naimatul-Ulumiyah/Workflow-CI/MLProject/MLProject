@@ -23,6 +23,12 @@ entry_points:
       no_dagshub:
         type: bool
         default: true
+      data_dir:
+        type: str
+        default: "sepsis_preprocessing"
+      no_dagshub:
+        type: bool
+        default: true
 
     command: python modelling.py --n_estimators {n_estimators} --max_depth {max_depth} --learning_rate {learning_rate} --n_trials {n_trials} --model_type {model_type} --no_dagshub
-
+    command: python modelling.py --n_estimators {n_estimators} --max_depth {max_depth} --learning_rate {learning_rate} --n_trials {n_trials} --model_type {model_type} --data_dir {data_dir} --no_dagshub
