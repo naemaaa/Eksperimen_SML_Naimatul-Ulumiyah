@@ -41,14 +41,13 @@ jobs:
           pip install --upgrade pip
           pip install mlflow==2.19.0 scikit-learn xgboost imbalanced-learn optuna shap pandas numpy matplotlib seaborn dagshub psutil
 
-      - name: Run Preprocessing 
-        run: python MLProject/preprocessing_ci.py --output_dir MLProject/sepsis_preprocessing
-    
-      - name: Verify Preprocessed Data  # Optional, buat debug
-        run: ls -la MLProject/sepsis_preprocessing || echo "Folder data gak tercipta!"
-      
-      - name: Verify Preprocessed Data 
-        run: ls -la MLProject/sepsis_preprocessing || echo "Folder data gak tercipta!"
+      - name: Run Preprocessing
+        run: python MLProject/preprocessing_ci.py --output_dir=MLProject/sepsis_preprocessing 
+
+      - name: Verify Preprocessed Data  # Tambah ini buat debug
+        run: |
+          ls -la MLProject/sepsis_preprocessing || echo "Folder gak ada!"
+          ls -la MLProject/sepsis_preprocessing/sepsis_preprocessing_train.csv || echo "File train gak ada!"
 
       - name: Set MLflow Tracking URI
         env:
@@ -63,9 +62,10 @@ jobs:
         env:
           MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}  # Tambah ini
         run: |
           cd MLProject
-          mlflow run . --experiment-name "Sepsis_ICU_CI" --env-manager=local -P model_type=${{ github.event.inputs.model_type || 'xgboost' }} -P n_trials=${{ github.event.inputs.n_trials || '20' }} -P no_dagshub=true
+          mlflow run . --experiment-name "Sepsis_ICU_CI" --env-manager=local -P model_type=${{ github.event.inputs.model_type || 'xgboost' }} -P n_trials=${{ github.event.inputs.n_trials || '20' }} -P data_dir=sepsis_preprocessing -P no_dagshub=false  # Ganti ke false kalau mau DagsHub
 
       - name: Get latest MLflow run_id
         run: |
@@ -78,7 +78,7 @@ jobs:
         run: |
           pip install google-auth google-auth-httplib2 google-api-python-client
 
-      - name: Upload to Google Drive
+      - name: Upload to Google Drive  # Ini bagian Drive, detail di Step 4
         env:
           RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
         run: |
@@ -93,7 +93,7 @@ jobs:
 
       - name: Build Docker Model
         run: |
-          MODEL_PATH=$(find MLProject/mlruns -name "MLmodel" 2>/dev/null | head -1 | xargs dirname 2>/dev/null || echo "")
+          MODEL_PATH=$(find MLProject/mlruns -name "MLmodel" 2>/dev/null | head-1 | xargs dirname 2>/dev/null || echo "")
           if [ -n "$MODEL_PATH" ]; then
             mlflow models build-docker -m "$MODEL_PATH" -n ${{ secrets.DOCKER_USERNAME }}/sepsis-icu-model --enable-mlserver || true
           else
@@ -122,17 +122,3 @@ jobs:
           name: mlflow-artifacts-${{ github.run_number }}
           path: MLProject/mlruns/
           retention-days: 30
-          
-      - name: Run mlflow project
-        env:
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
-        run: |
-          cd MLProject
-          mlflow run . --experiment-name "Sepsis_ICU_CI" --env-manager=local -P model_type=${{ github.event.inputs.model_type || 'xgboost' }} -P n_trials=${{ github.event.inputs.n_trials || '20' }} -P data_dir=$PWD/sepsis_preprocessing -P no_dagshub=true
-      
-
-
-
-          name: CI Sepsis ICU MLflow Project
-
