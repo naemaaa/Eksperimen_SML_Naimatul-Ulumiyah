@@ -7,6 +7,19 @@ warnings.filterwarnings('ignore')
 
 import numpy as np
 import pandas as pd
+
+
+def _sanitize_for_mlflow(val):
+    if isinstance(val, np.generic):
+        return val.item()
+    if isinstance(val, (np.ndarray,)):
+        return val.tolist()
+    if isinstance(val, dict):
+        return {k: _sanitize_for_mlflow(v) for k, v in val.items()}
+    if isinstance(val, (list, tuple)):
+        return type(val)(_sanitize_for_mlflow(v) for v in val)
+    return val
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -212,10 +225,6 @@ def plot_feature_importance(model, feature_names, model_name, top_n=25):
 
 
 def plot_shap_analysis(model, X_sample, model_name):
-    """
-    SHAP analysis — menjelaskan KENAPA model memprediksi sepsis.
-    Ini yang membuat portfolio kamu stand out secara klinis.
-    """
     print(f"\n  🔍 Computing SHAP values untuk {model_name}...")
 
     try:
@@ -314,21 +323,22 @@ rf_pred_opt = (rf_prob >= rf_best_thresh).astype(int)
 with mlflow.start_run(run_name='RandomForest_Optuna_Tuning') as run_rf:
 
     # Log params
-    mlflow.log_params(best_rf_params)
+    rf_params_clean = {k: _sanitize_for_mlflow(v) for k, v in best_rf_params.items()}
+    mlflow.log_params(rf_params_clean)
     mlflow.log_param('tuning_method', 'optuna')
     mlflow.log_param('n_trials', args.n_trials)
     mlflow.log_param('optimal_threshold', rf_best_thresh)
 
     # Log metrics (manual — lebih dari autolog)
-    mlflow.log_metric('accuracy',              accuracy_score(y_test, rf_pred))
-    mlflow.log_metric('precision',             precision_score(y_test, rf_pred))
-    mlflow.log_metric('recall',                recall_score(y_test, rf_pred))
-    mlflow.log_metric('f1_score',              f1_score(y_test, rf_pred))
-    mlflow.log_metric('roc_auc',               roc_auc_score(y_test, rf_prob))
-    mlflow.log_metric('avg_precision',         average_precision_score(y_test, rf_prob))
-    mlflow.log_metric('recall_optimal_thresh', recall_score(y_test, rf_pred_opt))
-    mlflow.log_metric('f1_optimal_thresh',     rf_best_f1)
-    mlflow.log_metric('optuna_best_auc',       rf_study.best_value)
+    mlflow.log_metric('accuracy', accuracy_score(y_test, rf_pred))
+    mlflow.log_metric('precision',precision_score(y_test, rf_pred))
+    mlflow.log_metric('recall',recall_score(y_test, rf_pred))
+    mlflow.log_metric('f1_score',f1_score(y_test, rf_pred))
+    mlflow.log_metric('roc_auc',roc_auc_score(y_test, rf_prob))
+    mlflow.log_metric('avg_precision',average_precision_score(y_test, rf_prob))
+    mlflow.log_metric('recall_optimal_thresh',recall_score(y_test, rf_pred_opt))
+    mlflow.log_metric('f1_optimal_thresh', rf_best_f1)
+    mlflow.log_metric('optuna_best_auc', rf_study.best_value)
 
     # Log artefak
     cm_path  = plot_confusion_matrix(y_test, rf_pred_opt, 'Random Forest')
@@ -436,23 +446,24 @@ xgb_pred_opt = (xgb_prob >= xgb_best_thresh).astype(int)
 with mlflow.start_run(run_name='XGBoost_Optuna_Tuning') as run_xgb:
 
     # Log params
-    mlflow.log_params({k: v for k, v in best_xgb_params.items()
-                       if k not in ['eval_metric', 'use_label_encoder', 'n_jobs']})
+    xgb_params_clean = {k: _sanitize_for_mlflow(v) for k, v in best_xgb_params.items()
+                       if k not in ['eval_metric', 'use_label_encoder', 'n_jobs']}
+    mlflow.log_params(xgb_params_clean)
     mlflow.log_param('tuning_method', 'optuna')
     mlflow.log_param('n_trials', args.n_trials)
     mlflow.log_param('optimal_threshold', xgb_best_thresh)
     mlflow.log_param('scale_pos_weight', round(spw, 3))
 
     # Log metrics
-    mlflow.log_metric('accuracy',              accuracy_score(y_test, xgb_pred))
-    mlflow.log_metric('precision',             precision_score(y_test, xgb_pred))
-    mlflow.log_metric('recall',                recall_score(y_test, xgb_pred))
-    mlflow.log_metric('f1_score',              f1_score(y_test, xgb_pred))
-    mlflow.log_metric('roc_auc',               roc_auc_score(y_test, xgb_prob))
-    mlflow.log_metric('avg_precision',         average_precision_score(y_test, xgb_prob))
+    mlflow.log_metric('accuracy',accuracy_score(y_test, xgb_pred))
+    mlflow.log_metric('precision',precision_score(y_test, xgb_pred))
+    mlflow.log_metric('recall',recall_score(y_test, xgb_pred))
+    mlflow.log_metric('f1_score',f1_score(y_test, xgb_pred))
+    mlflow.log_metric('roc_auc', roc_auc_score(y_test, xgb_prob))
+    mlflow.log_metric('avg_precision', average_precision_score(y_test, xgb_prob))
     mlflow.log_metric('recall_optimal_thresh', recall_score(y_test, xgb_pred_opt))
-    mlflow.log_metric('f1_optimal_thresh',     xgb_best_f1)
-    mlflow.log_metric('optuna_best_auc',       xgb_study.best_value)
+    mlflow.log_metric('f1_optimal_thresh',xgb_best_f1)
+    mlflow.log_metric('optuna_best_auc', xgb_study.best_value)
 
     # Log artefak
     cm_path  = plot_confusion_matrix(y_test, xgb_pred_opt, 'XGBoost')
@@ -554,14 +565,14 @@ print("="*65)
 print(f"\n  🏆 Best Model   : {best_model_name}")
 print(f"  📊 ROC AUC      : {max(rf_auc, xgb_auc):.4f}")
 print(f"\n  Artefak yang dihasilkan:")
-print("  ├── confusion_matrix_*.png")
-print("  ├── roc_pr_*.png")
-print("  ├── threshold_opt_*.png")
-print("  ├── feature_importance_*.png")
-print("  ├── shap_importance_*.png  ← SHAP analysis")
-print("  ├── shap_beeswarm_*.png    ← SHAP beeswarm")
-print("  ├── model_comparison.png")
-print("  └── optuna_*_summary.json")
+print("confusion_matrix_*.png")
+print("roc_pr_*.png")
+print("threshold_opt_*.png")
+print("feature_importance_*.png")
+print("shap_importance_*.png  ← SHAP analysis")
+print("shap_beeswarm_*.png    ← SHAP beeswarm")
+print("model_comparison.png")
+print("optuna_*_summary.json")
 print()
 
 if USE_DAGSHUB:
@@ -570,8 +581,8 @@ else:
     print("MLflow lokal: jalankan 'mlflow ui' → http://localhost:5000")
 
 print()
-print("  Insight klinis dari model:")
-print("  → Cek SHAP beeswarm: fitur Lactate, WBC, HR_trend, sofa_proxy")
-print("    adalah kontributor terbesar prediksi sepsis.")
-print("  → Optimal threshold berbeda dari 0.5 karena class imbalance.")
-print("    Di setting klinis, recall lebih penting dari precision!")
+print("Insight klinis dari model:")
+print("Cek SHAP beeswarm: fitur Lactate, WBC, HR_trend, sofa_proxy")
+print("adalah kontributor terbesar prediksi sepsis.")
+print("Optimal threshold berbeda dari 0.5 karena class imbalance.")
+print("Di setting klinis, recall lebih penting dari precision!")
