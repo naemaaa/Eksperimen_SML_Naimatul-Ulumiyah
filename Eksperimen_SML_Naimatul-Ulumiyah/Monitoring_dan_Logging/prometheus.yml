@@ -1,15 +1,6 @@
-# prometheus.yml
-# ==============
-# Konfigurasi Prometheus untuk monitoring Sepsis ICU model.
-#
-# Jalankan:
-#   prometheus --config.file=prometheus.yml
-#
-# Akses UI: http://localhost:9090
-
 global:
-  scrape_interval:     5s   # Seberapa sering Prometheus scrape metrics
-  evaluation_interval: 5s   # Seberapa sering rules dievaluasi
+  scrape_interval:     5s   
+  evaluation_interval: 5s   
   scrape_timeout:      4s
 
   # Label yang ditambahkan ke semua time series
@@ -17,17 +8,11 @@ global:
     monitor  : 'sepsis-icu-monitor'
     project  : 'msml-submission'
 
-# Alert rules (load dari file terpisah) ────────────────────────────────────
+# Alert rules
 rule_files:
   - "alert_rules.yml"
 
-# Alertmanager (opsional, untuk notifikasi) ─────────────────────────────────
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets: ['localhost:9093']
-
-# Scrape configs ────────────────────────────────────────────────────────────
+# Scrape configs
 scrape_configs:
 
   # 1. Scrape Prometheus itself
@@ -37,7 +22,7 @@ scrape_configs:
         labels:
           service: 'prometheus'
 
-  # 2. Scrape model metrics dari exporter kita
+  # 2. Scrape model metrics dari exporter 
   - job_name: 'sepsis_model_metrics'
     scrape_interval: 5s
     static_configs:
@@ -46,8 +31,3 @@ scrape_configs:
           service     : 'sepsis-icu-model'
           model_type  : 'xgboost'
           environment : 'local'
-
-  # 3. Scrape MLflow serving (jika punya /metrics endpoint)
-  # - job_name: 'mlflow_serving'
-  #   static_configs:
-  #     - targets: ['localhost:5001']

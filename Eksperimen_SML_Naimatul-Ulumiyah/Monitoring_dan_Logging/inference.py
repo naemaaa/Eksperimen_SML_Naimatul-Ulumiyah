@@ -1,5 +1,3 @@
-
-
 import json
 import time
 import random
@@ -9,11 +7,10 @@ import numpy as np
 import requests
 from datetime import datetime
 
-# Config ───────
-MODEL_URL       = 'http://localhost:5001/invocations'
-OPTIMAL_THRESHOLD = 0.35    # threshold optimal dari training (bukan default 0.5!)
+MODEL_URL       = 'http://localhost:5002/invocations'
+OPTIMAL_THRESHOLD = 0.35    
 
-# Warna terminal ────────────────────────────────────────────────────────────
+# Warna terminal 
 RED    = '\033[91m'
 GREEN  = '\033[92m'
 YELLOW = '\033[93m'
@@ -22,7 +19,7 @@ BOLD   = '\033[1m'
 RESET  = '\033[0m'
 
 
-# Generate patient data ─────────────────────────────────────────────────────
+# Generate patient data 
 def generate_patient(profile: str = 'random') -> dict:
     """
     Generate data pasien ICU sintetis.
@@ -87,16 +84,11 @@ def generate_patient(profile: str = 'random') -> dict:
 
 
 def patient_to_features(patient: dict) -> list:
-    """Convert dict pasien ke list features untuk model."""
     return list(patient.values())
 
 
 # Call model ───
 def predict(features: list, threshold: float = OPTIMAL_THRESHOLD) -> dict:
-    """
-    Kirim features ke model serving dan parse hasilnya.
-    Return dict dengan prediction, confidence, latency.
-    """
     payload = {'inputs': [features]}
 
     start    = time.time()
@@ -127,7 +119,7 @@ def predict(features: list, threshold: float = OPTIMAL_THRESHOLD) -> dict:
         'prediction' : prediction,
         'confidence' : confidence,
         'latency_ms' : latency * 1000,
-        'label'      : 'SEPSIS ⚠️ ' if prediction == 1 else 'Non-Sepsis ✅',
+        'label'      : 'SEPSIS' if prediction == 1 else 'Non-Sepsis',
         'risk_level' : _risk_level(confidence),
     }
 
@@ -140,9 +132,8 @@ def _risk_level(confidence: float) -> str:
     return f"{GREEN}MINIMAL{RESET}"
 
 
-# Clinical interpretation ────────────────────────────────────────────────────
+# Clinical interpretation
 def clinical_interpretation(patient: dict, result: dict) -> str:
-    """Generate interpretasi klinis sederhana."""
     flags = []
 
     if patient.get('HR_mean', 0) > 100:
@@ -167,7 +158,7 @@ def clinical_interpretation(patient: dict, result: dict) -> str:
     return "\n".join(lines)
 
 
-# Display single prediction ─────────────────────────────────────────────────
+# Display single prediction 
 def display_prediction(i: int, patient: dict, result: dict, verbose: bool = True):
     label_color = RED if result['prediction'] == 1 else GREEN
 
@@ -212,7 +203,7 @@ def print_summary(results: list, latencies: list, elapsed: float):
     print(f"{'='*55}")
 
 
-# Main ──────────
+# Main
 def main():
     parser = argparse.ArgumentParser(description='Sepsis ICU Model Inference')
     parser.add_argument('--n',        type=int,  default=20,    help='Jumlah prediksi')
@@ -224,7 +215,7 @@ def main():
                         help='Profil pasien yang di-generate')
     args = parser.parse_args()
 
-    print(f"\n{BOLD}🏥 SEPSIS ICU — Model Inference{RESET}")
+    print(f"\n{BOLD}SEPSIS ICU — Model Inference{RESET}")
     print(f"   URL      : {MODEL_URL}")
     print(f"   Threshold: {OPTIMAL_THRESHOLD}")
     print(f"   Profil   : {args.profile}")
@@ -235,9 +226,9 @@ def main():
         test_patient  = generate_patient('healthy')
         test_features = patient_to_features(test_patient)
         test_result   = predict(test_features)
-        print(f"\n{GREEN}✅ Koneksi ke model serving berhasil{RESET}\n")
+        print(f"\n{GREEN}Koneksi ke model serving berhasil{RESET}\n")
     except Exception as e:
-        print(f"\n{RED}❌ Tidak dapat terhubung ke model serving: {e}{RESET}")
+        print(f"\n{RED}Tidak dapat terhubung ke model serving: {e}{RESET}")
         print(f"   Pastikan sudah menjalankan:")
         print(f"   mlflow models serve -m RUN_ID/artifacts/xgboost_model -p 5001 --no-conda")
         return

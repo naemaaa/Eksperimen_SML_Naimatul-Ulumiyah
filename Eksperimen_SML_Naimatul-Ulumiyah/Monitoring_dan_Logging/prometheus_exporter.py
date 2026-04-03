@@ -1,35 +1,3 @@
-"""
-prometheus_exporter.py
-======================
-Prometheus metrics exporter untuk monitoring Sepsis ICU model.
-Mengekspos 10+ metrik berbeda via HTTP endpoint.
-
-Install:
-    pip install prometheus-client requests numpy
-
-Jalankan (setelah model serving aktif di port 5001):
-    python prometheus_exporter.py
-
-Metrics tersedia di:
-    http://localhost:8000/metrics
-
-Metrik yang diekspos:
-  1.  model_predictions_total          — Counter total prediksi
-  2.  model_prediction_latency_seconds — Histogram latensi per request
-  3.  model_accuracy_gauge             — Gauge akurasi model (rolling window)
-  4.  model_error_total                — Counter error/exception
-  5.  model_requests_per_second        — Gauge request rate
-  6.  sepsis_positive_predictions      — Counter prediksi positif (sepsis)
-  7.  sepsis_negative_predictions      — Counter prediksi negatif (non-sepsis)
-  8.  model_memory_usage_bytes         — Gauge penggunaan memori proses
-  9.  model_cpu_usage_percent          — Gauge penggunaan CPU
-  10. model_response_size_bytes        — Summary ukuran response
-  11. model_confidence_score           — Histogram confidence score prediksi
-  12. model_feature_drift_score        — Gauge data drift score (simulasi)
-  13. model_false_negative_rate        — Gauge false negative rate (rolling)
-  14. model_throughput_total           — Counter total throughput data pasien
-"""
-
 import time
 import random
 import json
@@ -60,28 +28,27 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # Konfigurasi ──
-MODEL_SERVE_URL = os.getenv('MODEL_SERVE_URL', 'http://localhost:5001/invocations')
+MODEL_SERVE_URL = os.getenv('MODEL_SERVE_URL', 'http://localhost:5002/invocations')
 EXPORTER_PORT   = int(os.getenv('EXPORTER_PORT', 8000))
-SCRAPE_INTERVAL = float(os.getenv('SCRAPE_INTERVAL', 2.0))   # detik
-N_FEATURES      = int(os.getenv('N_FEATURES', 13))            # sesuaikan dengan model
+SCRAPE_INTERVAL = float(os.getenv('SCRAPE_INTERVAL', 2.0))
+N_FEATURES      = int(os.getenv('N_FEATURES', 13))            
 
-# Definisi Metrik ───────────────────────────────────────────────────────────
-
+# Definisi Metrik 
 # 1. Total prediksi kumulatif
 PREDICTION_COUNTER = Counter(
     'model_predictions_total',
     'Total jumlah prediksi yang dilakukan oleh model sejak startup',
-    ['model_type', 'status']   # label: xgboost/rf, success/error
+    ['model_type', 'status']   
 )
 
-# 2. Latensi prediksi (histogram — bisa hitung percentile)
+# 2. Latensi prediksi 
 PREDICTION_LATENCY = Histogram(
     'model_prediction_latency_seconds',
     'Waktu yang dibutuhkan model untuk memberikan satu prediksi (detik)',
     buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]
 )
 
-# 3. Akurasi model (rolling window simulasi)
+# 3. Akurasi model 
 MODEL_ACCURACY = Gauge(
     'model_accuracy_gauge',
     'Estimasi akurasi model pada window prediksi terakhir (0-1)'
@@ -91,10 +58,10 @@ MODEL_ACCURACY = Gauge(
 ERROR_COUNTER = Counter(
     'model_error_total',
     'Total error/exception saat melakukan prediksi',
-    ['error_type']   # label: connection_error, timeout, invalid_response
+    ['error_type']   
 )
 
-# 5. Request rate (request per detik)
+# 5. Request rate 
 REQUEST_RATE = Gauge(
     'model_requests_per_second',
     'Jumlah request prediksi per detik (dihitung tiap interval)'
@@ -106,7 +73,7 @@ SEPSIS_POSITIVE = Counter(
     'Total prediksi POSITIF sepsis (model output = 1)'
 )
 
-# 7. Prediksi negatif (non-sepsis)
+# 7. Prediksi negatif 
 SEPSIS_NEGATIVE = Counter(
     'sepsis_negative_predictions_total',
     'Total prediksi NEGATIF sepsis (model output = 0)'
@@ -124,7 +91,7 @@ CPU_USAGE = Gauge(
     'Penggunaan CPU oleh proses serving model (%)'
 )
 
-# 10. Ukuran response (summary — rata-rata + percentile)
+# 10. Ukuran response 
 RESPONSE_SIZE = Summary(
     'model_response_size_bytes',
     'Ukuran response body dari model serving (bytes)'
@@ -145,7 +112,7 @@ FEATURE_DRIFT = Gauge(
     ['feature_group']   # vital_signs, lab_values, demographics
 )
 
-# 13. False Negative Rate (rolling — krusial untuk model medis!)
+# 13. False Negative Rate 
 FALSE_NEGATIVE_RATE = Gauge(
     'model_false_negative_rate',
     'Estimasi false negative rate pada window terakhir. '
@@ -158,7 +125,7 @@ THROUGHPUT = Counter(
     'Total data pasien yang sudah diproses sejak startup'
 )
 
-# State tracking untuk rolling metrics ──────────────────────────────────────
+# State tracking untuk rolling metrics
 _window_preds   = []    # [(y_true_sim, y_pred, confidence), ...]
 _window_size    = 100   # rolling window
 _request_count  = 0
@@ -166,13 +133,9 @@ _last_time      = time.time()
 _lock           = threading.Lock()
 
 
-# Helper: Generate dummy ICU patient data ────────────────────────────────────
+# Helper: Generate dummy ICU patient data 
 def generate_icu_patient():
-    """
-    Generate data pasien ICU sintetis untuk simulasi prediksi.
-    Distribusi mengikuti range nilai klinis normal ICU.
-    Kadang-kadang inject 'sakit berat' untuk simulasi sepsis positif.
-    """
+
     is_sick = random.random() < 0.08   # 8% positif — sesuai distribusi asli
 
     if is_sick:
@@ -215,12 +178,8 @@ def generate_icu_patient():
     return list(features.values()), true_label
 
 
-# Helper: Call model serving endpoint ───────────────────────────────────────
+# Helper: Call model serving endpoint 
 def call_model(features: list) -> dict:
-    """
-    Kirim request ke MLflow model serving.
-    Return: {'prediction': int, 'confidence': float, 'response_size': int}
-    """
     # Format sesuai MLflow serving API
     payload = {'inputs': [features]}
 
@@ -252,7 +211,7 @@ def call_model(features: list) -> dict:
     }
 
 
-# Helper: Update resource metrics ───────────────────────────────────────────
+# Helper: Update resource metrics
 def update_resource_metrics():
     """Update CPU dan memory dari proses sistem."""
     try:
@@ -265,12 +224,8 @@ def update_resource_metrics():
         CPU_USAGE.set(random.uniform(15, 65))
 
 
-# Helper: Update drift metrics ──────────────────────────────────────────────
+# Helper: Update drift metrics 
 def update_drift_metrics():
-    """
-    Simulasi deteksi data drift per group fitur.
-    Di production: hitung dengan PSI / KS-test vs training distribution.
-    """
     # Simulasi drift yang berfluktuasi realistis
     base_time = time.time()
 
@@ -285,7 +240,6 @@ def update_drift_metrics():
 
 # Helper: Compute rolling accuracy & FNR ────────────────────────────────────
 def update_rolling_metrics():
-    """Hitung akurasi dan FNR dari window prediksi terakhir."""
     global _window_preds
 
     with _lock:
@@ -306,7 +260,7 @@ def update_rolling_metrics():
     FALSE_NEGATIVE_RATE.set(fnr)
 
 
-# Helper: Update request rate ───────────────────────────────────────────────
+# Helper: Update request rate 
 def update_request_rate(n_new_requests: int, elapsed: float):
     rate = n_new_requests / elapsed if elapsed > 0 else 0
     REQUEST_RATE.set(rate)
@@ -314,9 +268,6 @@ def update_request_rate(n_new_requests: int, elapsed: float):
 
 # Main loop ────
 def run_prediction_loop():
-    """
-    Loop utama: generate data pasien → kirim ke model → update semua metrik.
-    """
     global _request_count, _last_time
 
     log.info(f"Memulai prediction loop → model di {MODEL_SERVE_URL}")
@@ -401,10 +352,6 @@ def run_prediction_loop():
 
 
 def _simulate_metrics(features, true_label):
-    """
-    Simulasi metrik saat model tidak dapat dijangkau.
-    Agar dashboard Grafana tetap terisi data saat development.
-    """
     confidence  = random.betavariate(2, 5)  # distribusi miring ke kiri (kebanyakan non-sepsis)
     prediction  = 1 if confidence >= 0.35 else 0
 
@@ -429,7 +376,7 @@ def _simulate_metrics(features, true_label):
     CPU_USAGE.set(random.uniform(15, 65))
 
 
-# Entry Point ───
+# Entry Point 
 if __name__ == '__main__':
     log.info("="*60)
     log.info("  SEPSIS ICU — PROMETHEUS EXPORTER")
@@ -441,7 +388,7 @@ if __name__ == '__main__':
 
     # Start HTTP server untuk Prometheus scrape
     start_http_server(EXPORTER_PORT)
-    log.info(f"✅ Prometheus exporter aktif → http://localhost:{EXPORTER_PORT}/metrics")
+    log.info(f"Prometheus exporter aktif → http://localhost:{EXPORTER_PORT}/metrics")
 
     # Pre-set nilai awal biar dashboard tidak kosong
     MODEL_ACCURACY.set(0.0)
@@ -455,4 +402,4 @@ if __name__ == '__main__':
     try:
         run_prediction_loop()
     except KeyboardInterrupt:
-        log.info("\n⛔ Exporter dihentikan.")
+        log.info("\nExporter dihentikan.")

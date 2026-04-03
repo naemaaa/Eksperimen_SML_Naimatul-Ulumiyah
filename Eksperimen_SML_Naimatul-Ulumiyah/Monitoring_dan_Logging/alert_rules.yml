@@ -12,9 +12,7 @@ groups:
     interval: 1m  # Evaluate every 1 minute
     rules:
       
-      # ──────────────────────────────────────────────────────────────────────
       # ALERT 1: High CPU Usage
-      # ──────────────────────────────────────────────────────────────────────
       - alert: HighCPUUsage
         expr: ml_cpu_usage_percent{model="xgboost_sepsis"} > 80
         for: 5m  # Alert jika CPU >80% selama 5 menit
@@ -26,9 +24,7 @@ groups:
           description: "CPU usage pada model xgboost_sepsis adalah {{ $value }}% (threshold: 80%)"
           runbook_url: "https://github.com/naemaaa/Workflow-CI/wiki/troubleshooting#high-cpu"
       
-      # ──────────────────────────────────────────────────────────────────────
       # ALERT 2: High Request Latency (P95 > 0.5 seconds)
-      # ──────────────────────────────────────────────────────────────────────
       - alert: HighRequestLatency
         expr: histogram_quantile(0.95, sum(rate(ml_request_latency_seconds_bucket{model="xgboost_sepsis"}[5m])) by (le)) > 0.5
         for: 5m  # Alert jika P95 latency >0.5s selama 5 menit
@@ -40,9 +36,7 @@ groups:
           description: "P95 request latency adalah {{ $value | humanizeDuration }} (threshold: 0.5s)"
           runbook_url: "https://github.com/naemaaa/Workflow-CI/wiki/troubleshooting#high-latency"
       
-      # ──────────────────────────────────────────────────────────────────────
       # ALERT 3: High Error Rate (>10 errors per minute)
-      # ──────────────────────────────────────────────────────────────────────
       - alert: HighErrorRate
         expr: rate(ml_errors_total{model="xgboost_sepsis"}[5m]) > 0.1666  # >10 errors/min
         for: 5m  # Alert jika error rate tinggi selama 5 menit
@@ -54,9 +48,7 @@ groups:
           description: "Error rate model adalah {{ $value | humanize }} errors/sec (threshold: 0.1666)"
           runbook_url: "https://github.com/naemaaa/Workflow-CI/wiki/troubleshooting#high-errors"
       
-      # ──────────────────────────────────────────────────────────────────────
       # ALERT 4: Model Accuracy Drop (bonus)
-      # ──────────────────────────────────────────────────────────────────────
       - alert: ModelAccuracyDrop
         expr: ml_accuracy{model="xgboost_sepsis"} < 0.85
         for: 10m  # Alert jika accuracy <85% selama 10 menit
@@ -68,9 +60,7 @@ groups:
           description: "Model accuracy adalah {{ $value | humanizePercentage }} (threshold: 85%)"
           runbook_url: "https://github.com/naemaaa/Workflow-CI/wiki/troubleshooting#low-accuracy"
       
-      # ──────────────────────────────────────────────────────────────────────
       # ALERT 5: High Memory Usage
-      # ──────────────────────────────────────────────────────────────────────
       - alert: HighMemoryUsage
         expr: ml_memory_usage_mb{model="xgboost_sepsis"} > 800  # >800 MB
         for: 5m
@@ -82,9 +72,7 @@ groups:
           description: "Memory usage adalah {{ $value }} MB (threshold: 800 MB)"
           runbook_url: "https://github.com/naemaaa/Workflow-CI/wiki/troubleshooting#high-memory"
       
-      # ──────────────────────────────────────────────────────────────────────
       # ALERT 6: No Requests (Model might be down)
-      # ──────────────────────────────────────────────────────────────────────
       - alert: NoRequests
         expr: increase(ml_requests_total{model="xgboost_sepsis"}[5m]) == 0
         for: 10m  # Alert jika 0 requests selama 10 menit
@@ -96,23 +84,3 @@ groups:
           description: "Model xgboost_sepsis tidak menerima requests selama 10 menit"
           runbook_url: "https://github.com/naemaaa/Workflow-CI/wiki/troubleshooting#no-requests"
 
-# ────────────────────────────────────────────────────────────────────────────
-# NOTES untuk Grafana Integration:
-# ────────────────────────────────────────────────────────────────────────────
-# 1. Alert ini dapat di-test di Prometheus UI:
-#    - Pergi ke Alerts tab
-#    - Lihat rule status (Inactive, Pending, Firing)
-# 
-# 2. Untuk Grafana notification:
-#    - Create Alert in Grafana menggunakan panel queries
-#    - Set notification channel: Email, Slack, Webhook
-#    - Alert rule di file ini adalah untuk Prometheus-level alerting
-# 
-# 3. Severity levels:
-#    - warning: less critical, untuk trend/warning
-#    - critical: memerlukan immediate action
-# 
-# 4. Untuk Dicoding submission, cukup screenshot:
-#    - Rule configuration (3 rules utama)
-#    - Alert firing (state=Firing)
-#    - Notifikasi yang terkirim

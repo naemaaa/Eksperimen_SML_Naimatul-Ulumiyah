@@ -65,7 +65,7 @@ if USE_DAGSHUB:
             repo_name=DAGSHUB_REPO,
             mlflow=True
         )
-        print(f"✅ DagsHub connected: {DAGSHUB_USERNAME}/{DAGSHUB_REPO}")
+        print(f"DagsHub connected: {DAGSHUB_USERNAME}/{DAGSHUB_REPO}")
     except Exception as e:
         print(f" DagsHub setup gagal: {e}")
         print("   Lanjut dengan MLflow lokal...")
@@ -73,7 +73,7 @@ if USE_DAGSHUB:
 
 mlflow.set_experiment('Sepsis_ICU_Tuning')
 
-# Load Data ────
+# Load Data
 print("\n" + "="*65)
 print("  SEPSIS ICU — ADVANCED MODEL TRAINING")
 print("="*65)
@@ -94,8 +94,7 @@ print(f"  Test  : {X_test.shape}   |  Sepsis: {y_test.sum():,}  ({y_test.mean()*
 print(f"  Fitur : {X_train.shape[1]}")
 
 
-# Helper: Artifact Plots ─────────────────────────────────────────────────────
-
+# Helper: Artifact Plots 
 def plot_confusion_matrix(y_true, y_pred, model_name, threshold=0.5):
     """Confusion matrix dengan anotasi klinis."""
     cm = confusion_matrix(y_true, y_pred)
@@ -104,7 +103,7 @@ def plot_confusion_matrix(y_true, y_pred, model_name, threshold=0.5):
     disp = ConfusionMatrixDisplay(cm, display_labels=['Non-Sepsis', 'Sepsis'])
     disp.plot(ax=ax, cmap='Blues', colorbar=False)
 
-    # Highlight False Negatives — paling berbahaya di medis
+    # Highlight False Negatives 
     ax.add_patch(plt.Rectangle((0.5, -0.5), 1, 1,
                                 fill=True, color='#FFB3B3', alpha=0.3, zorder=0))
     ax.text(1.0, 0.0, ' False Negative\n(paling berbahaya)',
@@ -225,7 +224,7 @@ def plot_feature_importance(model, feature_names, model_name, top_n=25):
 
 
 def plot_shap_analysis(model, X_sample, model_name):
-    print(f"\n  🔍 Computing SHAP values untuk {model_name}...")
+    print(f"\n Computing SHAP values untuk {model_name}...")
 
     try:
         if 'XGBoost' in model_name:
@@ -235,13 +234,12 @@ def plot_shap_analysis(model, X_sample, model_name):
 
         shap_values = explainer.shap_values(X_sample)
 
-        # Untuk binary classification, ambil class 1 (sepsis)
         if isinstance(shap_values, list):
             sv = shap_values[1]
         else:
             sv = shap_values
 
-        # Plot 1: SHAP Summary (global importance)
+        # SHAP Summary (global importance)
         plt.figure(figsize=(10, 8))
         shap.summary_plot(sv, X_sample, show=False, max_display=20,
                           plot_type='bar', color='#E74C3C')
@@ -253,7 +251,7 @@ def plot_shap_analysis(model, X_sample, model_name):
         plt.savefig(path_bar, bbox_inches='tight', dpi=120)
         plt.close()
 
-        # Plot 2: SHAP Beeswarm (distribusi + arah pengaruh)
+        #SHAP Beeswarm (distribusi + arah pengaruh)
         plt.figure(figsize=(11, 9))
         shap.summary_plot(sv, X_sample, show=False, max_display=20)
         plt.title(f'SHAP Beeswarm — {model_name}\n'
@@ -268,12 +266,11 @@ def plot_shap_analysis(model, X_sample, model_name):
         return path_bar, path_bee
 
     except Exception as e:
-        print(f"   SHAP error: {e}")
+        print(f"SHAP error: {e}")
         return None, None
 
 
  # MODEL 1: RANDOM FOREST dengan Optuna Tuning
- 
 print("\n" + "─"*65)
 print("  MODEL 1: Random Forest + Optuna Tuning")
 print("─"*65)
@@ -374,7 +371,6 @@ print(f"  Recall    : {recall_score(y_test, rf_pred_opt):.4f}")
 
 
  # MODEL 2: XGBOOST dengan Optuna Tuning
- 
 print("\n" + "─"*65)
 print("  MODEL 2: XGBoost + Optuna Tuning")
 print("─"*65)
@@ -442,7 +438,7 @@ xgb_thresh_path, xgb_best_thresh, xgb_best_f1 = plot_threshold_optimization(
 )
 xgb_pred_opt = (xgb_prob >= xgb_best_thresh).astype(int)
 
-# MLflow logging: XGBoost ───────────────────────────────────────────────────
+# MLflow logging: XGBoost
 with mlflow.start_run(run_name='XGBoost_Optuna_Tuning') as run_xgb:
 
     # Log params
@@ -562,8 +558,8 @@ with mlflow.start_run(run_name='Model_Comparison_Summary'):
 print("\n" + "="*65)
 print("  SELESAI!")
 print("="*65)
-print(f"\n  🏆 Best Model   : {best_model_name}")
-print(f"  📊 ROC AUC      : {max(rf_auc, xgb_auc):.4f}")
+print(f"\nBest Model   : {best_model_name}")
+print(f"ROC AUC      : {max(rf_auc, xgb_auc):.4f}")
 print(f"\n  Artefak yang dihasilkan:")
 print("confusion_matrix_*.png")
 print("roc_pr_*.png")
