@@ -23,11 +23,14 @@ jobs:
 
       - name: Install dependencies
         run: |
+          cd Eksperimen_SML_Naimatul-Ulumiyah
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run Preprocessing
-        run: python Eksperimen_SML_Naimatul-Ulumiyah/preprocessing/automate_Naimatul-Ulumiyah.py
+        run: |
+          cd Eksperimen_SML_Naimatul-Ulumiyah
+          python preprocessing/automate_Naimatul-Ulumiyah.py
 
       - name: Commit & Push Preprocessed Dataset
         uses: stefanzweifel/git-auto-commit-action@v5
