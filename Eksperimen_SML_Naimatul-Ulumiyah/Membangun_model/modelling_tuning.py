@@ -140,7 +140,7 @@ def plot_roc_pr_curves(y_true, y_prob, model_name):
                 title=f'ROC Curve — {model_name}')
     axes[0].legend()
 
-    # Precision-Recall Curve (lebih informatif untuk imbalanced!)
+    # Precision-Recall Curve 
     precision, recall, thresholds = precision_recall_curve(y_true, y_prob)
     ap = average_precision_score(y_true, y_prob)
     axes[1].plot(recall, precision, color='#2E75B6', lw=2, label=f'PR (AP = {ap:.3f})')
