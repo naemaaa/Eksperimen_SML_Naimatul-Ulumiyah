@@ -36,7 +36,7 @@ Eksperimen_SML_Naimatul-Ulumiyah/
    - (Opsional) `python Membangun_model/modelling_tuning.py` untuk tuning lebih lanjut.
 
 3. **MLflow UI**  
-   - Setelah training, buka `http://localhost:5000` untuk melihat run dan artefak.
+   - Setelah training, buka `http://localhost:5002` untuk melihat run dan artefak.
 
 4. **Kriteria Lain**  
    - Folder `Monitoring_dan_Logging` berisi skrip servis & konfigurasi Prometheus.  
